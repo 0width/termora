@@ -64,7 +64,9 @@ tasks.named("build") {
 tasks.register<JavaExec>("run-plugin") {
     dependsOn("build")
 
-    setExecutable("${System.getProperty("java.home")}/bin/java")
+    setExecutable(
+        "${System.getProperty("java.home")}/bin/java" + if (os.isWindows) ".exe" else String()
+    )
     mainClass.set("app.termora.MainKt")
     classpath = files(compileClasspathConfiguration, runtimeClasspathConfiguration, runtimeCompileOnly)
     workingDir = rootProject.layout.projectDirectory.asFile

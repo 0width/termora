@@ -1,0 +1,22 @@
+<termora-plugin>
+
+    <id>mcp</id>
+
+    <name>MCP</name>
+
+    <version>${projectVersion}</version>
+
+    <termora-version since=">=2.0.0-0" until=""/>
+
+    <entry>app.termora.plugins.mcp.McpPlugin</entry>
+
+    <descriptions>
+        <description>Expose Termora terminals to AI via MCP (HTTP/SSE)</description>
+        <description language="zh_CN">通过 MCP（HTTP/SSE）将 Termora 终端暴露给 AI</description>
+        <description language="zh_TW">透過 MCP（HTTP/SSE）將 Termora 終端暴露給 AI</description>
+    </descriptions>
+
+    <vendor url="https://github.com/TermoraDev">TermoraDev</vendor>
+
+
+</termora-plugin>
