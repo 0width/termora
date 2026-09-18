@@ -57,6 +57,7 @@ class TerminalTabbed(
         tabbedPane.tabType = FlatTabbedPane.TabType.card
 
         add(tabbedPane, BorderLayout.CENTER)
+        add(MultipleInputBar(windowScope, this), BorderLayout.SOUTH)
 
         windowScope.getOrCreate(TerminalTabbedManager::class) { this }
 

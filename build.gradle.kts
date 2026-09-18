@@ -202,6 +202,18 @@ tasks.test {
 }
 
 @Suppress("CascadeIf")
+// Windows 不自带 zip 命令，回退到 7-Zip（copy-dependencies 用它从 jar 里删除条目）
+val zipCommand: String = run {
+    if (runCatching { ProcessBuilder("zip", "-v").start().waitFor() == 0 }.getOrDefault(false)) {
+        return@run "zip"
+    }
+    val sevenZip = sequenceOf(
+        "C:\\Program Files\\7-Zip\\7z.exe",
+        "C:\\Program Files (x86)\\7-Zip\\7z.exe",
+    ).map { File(it) }.firstOrNull { it.isFile }
+    requireNotNull(sevenZip) { "zip or 7-Zip is required" }.absolutePath
+}
+
 tasks.register<Copy>("copy-dependencies") {
     val dir = layout.buildDirectory.dir("libs")
     from(configurations.runtimeClasspath).into(dir)
@@ -214,6 +226,12 @@ tasks.register<Copy>("copy-dependencies") {
     val dylib = dir.get().dir("dylib").asFile
 
     doLast {
+        // zip 的删除语法是 zip -d <jar> <pattern>，7-Zip 则是 7z d <jar> <pattern>
+        val zipDelete = { archive: String, pattern: String ->
+            if (zipCommand == "zip") exec { commandLine("zip", "-d", archive, pattern) }
+            else exec { commandLine(zipCommand, "d", archive, pattern) }
+        }
+
         for (file in dir.get().asFile.listFiles() ?: emptyArray()) {
             if ("${jna.name}-${jna.version}" == file.nameWithoutExtension) {
                 val targetDir = File(dylib, jna.name)
@@ -232,14 +250,14 @@ tasks.register<Copy>("copy-dependencies") {
                     // @formatter:on
                 }
 
-                exec { commandLine("zip", "-d", file.absolutePath, "com/sun/jna/win32-*") }
-                exec { commandLine("zip", "-d", file.absolutePath, "com/sun/jna/linux-*") }
-                exec { commandLine("zip", "-d", file.absolutePath, "com/sun/jna/darwin-*") }
-                exec { commandLine("zip", "-d", file.absolutePath, "com/sun/jna/sunos-*") }
-                exec { commandLine("zip", "-d", file.absolutePath, "com/sun/jna/openbsd-*") }
-                exec { commandLine("zip", "-d", file.absolutePath, "com/sun/jna/freebsd-*") }
-                exec { commandLine("zip", "-d", file.absolutePath, "com/sun/jna/dragonflybsd-*") }
-                exec { commandLine("zip", "-d", file.absolutePath, "com/sun/jna/aix-*") }
+                zipDelete(file.absolutePath, "com/sun/jna/win32-*")
+                zipDelete(file.absolutePath, "com/sun/jna/linux-*")
+                zipDelete(file.absolutePath, "com/sun/jna/darwin-*")
+                zipDelete(file.absolutePath, "com/sun/jna/sunos-*")
+                zipDelete(file.absolutePath, "com/sun/jna/openbsd-*")
+                zipDelete(file.absolutePath, "com/sun/jna/freebsd-*")
+                zipDelete(file.absolutePath, "com/sun/jna/dragonflybsd-*")
+                zipDelete(file.absolutePath, "com/sun/jna/aix-*")
             } else if ("${pty4j.name}-${pty4j.version}" == file.nameWithoutExtension) {
                 val osName = if (os.isWindows) "win32" else if (os.isMacOsX) "darwin" else "linux"
                 val myArchName = if (arch.isArm) "aarch64" else "x86-64"
@@ -248,7 +266,7 @@ tasks.register<Copy>("copy-dependencies") {
                 FileUtils.forceMkdir(targetDir)
                 if (os.isWindows) {
                     // @formatter:off
-                    exec { commandLine("unzip", "-j" , "-o", file.absolutePath, "resources/*win/${myArchName}/*", "-d", targetDir.absolutePath) }
+                    exec { commandLine("unzip", "-j" , "-o", file.absolutePath, "resources/com/pty4j/native/win/${myArchName}/*", "-d", targetDir.absolutePath) }
                     // @formatter:on
                 } else if (os.isLinux) {
                     // @formatter:off
@@ -259,7 +277,7 @@ tasks.register<Copy>("copy-dependencies") {
                     exec { commandLine("unzip", "-j" , "-o", file.absolutePath, "resources/com/pty4j/native/darwin*", "-d", targetDir.absolutePath) }
                     // @formatter:on
                 }
-                exec { commandLine("zip", "-d", file.absolutePath, "resources/*") }
+                zipDelete(file.absolutePath, "resources/*")
             } else if ("${restart4j.name}-${restart4j.version}" == file.nameWithoutExtension) {
                 val targetDir = FileUtils.getFile(dylib, restart4j.name)
                 FileUtils.forceMkdir(targetDir)
@@ -282,9 +300,9 @@ tasks.register<Copy>("copy-dependencies") {
                     FileFilterUtils.trueFileFilter(),
                     FileFilterUtils.falseFileFilter()
                 )) e.setExecutable(true)
-                exec { commandLine("zip", "-d", file.absolutePath, "win32/*") }
-                exec { commandLine("zip", "-d", file.absolutePath, "darwin/*") }
-                exec { commandLine("zip", "-d", file.absolutePath, "linux/*") }
+                zipDelete(file.absolutePath, "win32/*")
+                zipDelete(file.absolutePath, "darwin/*")
+                zipDelete(file.absolutePath, "linux/*")
             } else if ("${sqlite.name}-${sqlite.version}" == file.nameWithoutExtension) {
                 val targetDir = FileUtils.getFile(dylib, sqlite.name)
                 FileUtils.forceMkdir(targetDir)
@@ -301,7 +319,7 @@ tasks.register<Copy>("copy-dependencies") {
                     exec { commandLine("unzip", "-j" , "-o", file.absolutePath, "org/sqlite/native/Mac/${archName}/*", "-d", targetDir.absolutePath) }
                     // @formatter:on
                 }
-                exec { commandLine("zip", "-d", file.absolutePath, "org/sqlite/native/*") }
+                zipDelete(file.absolutePath, "org/sqlite/native/*")
             } else if ("${flatlaf.name}-${flatlaf.version}" == file.nameWithoutExtension) {
                 val targetDir = FileUtils.getFile(dylib, flatlaf.name)
                 FileUtils.forceMkdir(targetDir)
@@ -319,7 +337,7 @@ tasks.register<Copy>("copy-dependencies") {
                     exec { commandLine("unzip", "-j" , "-o", file.absolutePath, "com/formdev/flatlaf/natives/*macos*${if (isArm) "arm" else "x86"}*", "-d", targetDir.absolutePath) }
                     // @formatter:on
                 }
-                exec { commandLine("zip", "-d", file.absolutePath, "com/formdev/flatlaf/natives/*") }
+                zipDelete(file.absolutePath, "com/formdev/flatlaf/natives/*")
             }
         }
 

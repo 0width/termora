@@ -1,8 +1,5 @@
 package app.termora
 
-import app.termora.actions.AnActionEvent
-import app.termora.actions.DataProviders
-import app.termora.actions.MultipleAction
 import app.termora.highlight.KeywordHighlightPaintListener
 import app.termora.terminal.DataKey
 import app.termora.terminal.PtyConnector
@@ -11,12 +8,10 @@ import app.termora.terminal.panel.TerminalHyperlinkPaintListener
 import app.termora.terminal.panel.TerminalPanel
 import app.termora.terminal.panel.TerminalWriter
 import kotlinx.coroutines.*
-import org.apache.commons.lang3.StringUtils
 import org.slf4j.LoggerFactory
 import java.awt.event.ComponentEvent
 import java.awt.event.ComponentListener
 import java.nio.charset.Charset
-import java.util.*
 import javax.swing.JComponent
 import javax.swing.SwingUtilities
 import kotlin.time.Duration.Companion.milliseconds
@@ -115,10 +110,7 @@ class TerminalPanelFactory : Disposable {
             private val log = LoggerFactory.getLogger(MyTerminalWriter::class.java)
         }
 
-        private lateinit var evt: AnActionEvent
-
         override fun onMounted(c: JComponent) {
-            evt = AnActionEvent(c, StringUtils.EMPTY, EventObject(c))
         }
 
         override fun write(request: TerminalWriter.WriteRequest) {
@@ -127,31 +119,7 @@ class TerminalPanelFactory : Disposable {
                 log.debug("write: ${String(request.buffer, getCharset())}")
             }
 
-            val windowScope = evt.getData(DataProviders.WindowScope)
-            if (windowScope == null) {
-                ptyConnector.write(request.buffer)
-                return
-            }
-
-            val multipleAction = MultipleAction.getInstance()
-            if (multipleAction.isSelected(windowScope).not()) {
-                ptyConnector.write(request.buffer)
-                return
-            }
-
-            val terminalTabbedManager = evt.getData(DataProviders.TerminalTabbedManager)
-            if (terminalTabbedManager == null) {
-                ptyConnector.write(request.buffer)
-                return
-            }
-
-            for (tab in terminalTabbedManager.getTerminalTabs()) {
-                val writer = tab.getData(DataProviders.TerminalWriter) ?: continue
-                if (writer is MyTerminalWriter) {
-                    writer.ptyConnector.write(request.buffer)
-                }
-            }
-
+            ptyConnector.write(request.buffer)
         }
 
         override fun resize(rows: Int, cols: Int) {
